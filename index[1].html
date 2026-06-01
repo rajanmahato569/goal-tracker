@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rs. 153M Target Tracker</title>
+    <link rel="icon" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="manifest" href="manifest.json">
+    
+    <style>
+        body { background-color: #0a0a0a; color: #ffffff; font-family: 'Courier New', Courier, monospace; display: flex; justify-content: center; padding: 40px 20px; margin: 0; min-height: 100vh; }
+        .dashboard { display: flex; gap: 60px; max-width: 1000px; width: 100%; flex-wrap: wrap; justify-content: center; }
+        .visual-section { display: flex; flex-direction: column; align-items: center; }
+        .cylinder-container { width: 120px; height: 400px; background-color: #1a1a1a; border-radius: 60px; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 0 10px rgba(255,255,255,0.05); margin: 20px 0; }
+        .cylinder-fill { position: absolute; bottom: 0; width: 100%; height: 0%; background: linear-gradient(to top, #0088ff, #00ffcc); border-radius: 0 0 60px 60px; box-shadow: 0 0 20px #00ffcc, inset 0 10px 10px rgba(255,255,255,0.4); transition: height 1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .cylinder-fill::after { content: ''; position: absolute; top: -10px; left: 0; width: 100%; height: 20px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; }
+        .data-section { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 30px; }
+        .stats-box { background: #111; padding: 20px; border-radius: 15px; border: 1px solid #333; }
+        .highlight { color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0, 255, 204, 0.4); }
+        .expense-text { color: #ff3366; font-weight: bold; text-shadow: 0 0 5px rgba(255, 51, 102, 0.4); }
+        h2 { margin-top: 0; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; font-size: 1.2rem; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 15px; background: #111; padding: 20px; border-radius: 15px; border: 1px solid #333; transition: all 0.3s ease; }
+        .toggle-group { display: flex; gap: 20px; margin-bottom: 5px; }
+        .toggle-group label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        input[type="radio"] { accent-color: #00ffcc; }
+        input[type="radio"][value="expense"] { accent-color: #ff3366; }
+        input[type="number"], input[type="date"], input[type="text"], select, button { background: #222; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 5px; font-family: inherit; }
+        input:focus, select:focus { outline: none; border-color: #888; }
+        button { background: #fff; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+        button:hover { box-shadow: 0 0 15px rgba(255,255,255,0.5); }
+        #custom-source-input { display: none; border-color: #00ffcc; }
+        .history-box { background: #111; padding: 20px; border-radius: 15px; border: 1px solid #333; max-height: 400px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 10px 5px; border-bottom: 1px solid #222; }
+        th { color: #888; font-weight: normal; }
+        .action-btns { display: flex; gap: 8px; }
+        .action-btn { background: none; border: none; padding: 0; font-size: 1.1rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        .action-btn:hover { opacity: 1; }
+        .edit-btn { color: #0088ff; }
+        .delete-btn { color: #ff3366; }
+    </style>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="visual-section">
+            <h2>2083 Target ($1M USD)</h2>
+            <div class="cylinder-container"><div class="cylinder-fill" id="fill-bar"></div></div>
+            <div style="text-align: center; margin-top: 10px;"><span id="percent-text" class="highlight" style="font-size: 1.5rem;">0%</span></div>
+        </div>
+        <div class="data-section">
+            <div class="stats-box">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span>Gross Earnings:</span><span class="highlight" id="total-income-text">Rs. 0</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span>Total Expenses:</span><span class="expense-text" id="total-expense-text">-Rs. 0</span></div>
+                <div style="display: flex; justify-content: space-between; border-top: 1px solid #333; padding-top: 10px; margin-bottom: 10px;"><span>Net Retained:</span><span style="color: #fff; font-weight: bold;" id="net-text">Rs. 0</span></div>
+                <div style="display: flex; justify-content: space-between; color: #888; font-size: 0.9rem;"><span>Remaining to $1M:</span><span id="remaining-text">Rs. 153,550,000</span></div>
+            </div>
+            <div class="input-group" id="form-container">
+                <h2 id="form-title">Log Transaction</h2>
+                <div class="toggle-group">
+                    <label><input type="radio" name="type" value="income" checked onchange="window.updateCategories()"> Income</label>
+                    <label><input type="radio" name="type" value="expense" onchange="window.updateCategories()"> Expense</label>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="amount-input" placeholder="Amount (Rs)" style="flex: 1;" required>
+                    <input type="date" id="date-input" style="flex: 1;" required>
+                </div>
+                <select id="source-input" onchange="window.checkCustomSource()"></select>
+                <input type="text" id="custom-source-input" placeholder="Specify custom source...">
+                <input type="text" id="notes-input" placeholder="Notes (optional)">
+                <button id="submit-btn" onclick="window.addEntry()">Add Entry</button>
+            </div>
+            <div class="history-box">
+                <h2>Ledger</h2>
+                <table>
+                    <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Action</th></tr></thead>
+                    <tbody id="history-table-body"></tbody>
+                </table>
+                <button onclick="window.exportCSV()" style="width: 100%; margin-top: 15px; background: #111; color: #00ffcc; border-color: #00ffcc;">📥 Download Backup (CSV)</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDV4HwoFPg7bOL8xumhBwrtFondbL-G5xs",
+            authDomain: "goal-tracker-rajan.firebaseapp.com",
+            projectId: "goal-tracker-rajan",
+            storageBucket: "goal-tracker-rajan.firebasestorage.app",
+            messagingSenderId: "154389157597",
+            appId: "1:154389157597:web:d394075e13450601de6d34"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const txRef = collection(db, "transactions");
+        
+        // $1M USD = 153,550,000 NPR (No commas allowed in JS math!)
+        const TARGET = 153550000;
+        let transactions = [];
+        let editingId = null;
+        const categories = { income: ["NEPSE / Trading", "Home Tuition", "Web Development", "Video Editing", "Other Income"], expense: ["Broker/Trading Fees", "Tech/Software", "Personal/Food", "Education/Books", "Other Expense"] };
+        
+        document.getElementById('date-input').valueAsDate = new Date();
+
+        window.formatMoney = function(num) { return "Rs. " + num.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}); }
+        
+        window.updateCategories = function() {
+            const type = document.querySelector('input[name="type"]:checked').value;
+            const select = document.getElementById('source-input'); select.innerHTML = ''; 
+            categories[type].forEach(cat => { const option = document.createElement('option'); option.value = cat; option.textContent = cat; select.appendChild(option); });
+            window.checkCustomSource();
+        }
+        
+        window.checkCustomSource = function() {
+            const select = document.getElementById('source-input'); const customInput = document.getElementById('custom-source-input');
+            if (select.value === 'Other Income' || select.value === 'Other Expense') { customInput.style.display = 'block'; } else { customInput.style.display = 'none'; customInput.value = ''; }
+        }
+
+        function updateDashboard() {
+            let totalIncome = 0; let totalExpense = 0;
+            transactions.forEach(tx => { if (tx.type === 'income') totalIncome += tx.amount; if (tx.type === 'expense') totalExpense += tx.amount; });
+            const netRetained = totalIncome - totalExpense; const remaining = Math.max(TARGET - totalIncome, 0);
+            let percentage = (totalIncome / TARGET) * 100; if (percentage > 100) percentage = 100;
+
+            document.getElementById('total-income-text').innerText = window.formatMoney(totalIncome);
+            document.getElementById('total-expense-text').innerText = "-" + window.formatMoney(totalExpense);
+            document.getElementById('net-text').innerText = window.formatMoney(netRetained);
+            document.getElementById('remaining-text').innerText = window.formatMoney(remaining);
+            document.getElementById('percent-text').innerText = percentage.toFixed(2) + '%';
+            document.getElementById('fill-bar').style.height = percentage + '%';
+
+            const tbody = document.getElementById('history-table-body'); tbody.innerHTML = ''; 
+            for (let i = transactions.length - 1; i >= 0; i--) {
+                const tx = transactions[i]; const isIncome = tx.type === 'income'; const colorClass = isIncome ? 'highlight' : 'expense-text'; const sign = isIncome ? '+' : '-';
+                tbody.innerHTML += `<tr><td>${tx.date}</td><td><div>${tx.source}</div><div style="color: #666; font-size: 0.75rem;">${tx.notes}</div></td><td class="${colorClass}">${sign}${window.formatMoney(tx.amount)}</td><td><div class="action-btns"><button class="action-btn edit-btn" onclick="window.editEntry('${tx.id}')" title="Edit">✎</button><button class="action-btn delete-btn" onclick="window.deleteEntry('${tx.id}')" title="Delete">✖</button></div></td></tr>`;
+            }
+        }
+
+        onSnapshot(txRef, (snapshot) => {
+            transactions = [];
+            snapshot.forEach((doc) => { transactions.push({ id: doc.id, ...doc.data() }); });
+            transactions.sort((a, b) => a.createdAt - b.createdAt); updateDashboard();
+        });
+
+        window.addEntry = async function() {
+            const amountInput = document.getElementById('amount-input').value; const dateInput = document.getElementById('date-input').value;
+            const typeInput = document.querySelector('input[name="type"]:checked').value; const sourceSelect = document.getElementById('source-input').value;
+            const customSource = document.getElementById('custom-source-input').value; const notesInput = document.getElementById('notes-input').value;
+            if (!amountInput || !dateInput) return alert("Please enter an amount and a date.");
+            let finalSource = sourceSelect;
+            if (sourceSelect === 'Other Income' || sourceSelect === 'Other Expense') { if (!customSource.trim()) return alert("Please specify the custom source."); finalSource = customSource; }
+            
+            const entryData = { type: typeInput, amount: parseFloat(amountInput), date: dateInput, source: finalSource, notes: notesInput, createdAt: editingId ? transactions.find(t => t.id === editingId).createdAt : Date.now() };
+            if (editingId) { await updateDoc(doc(db, "transactions", editingId), entryData); editingId = null; document.getElementById('submit-btn').innerText = "Add Entry"; document.getElementById('form-title').innerText = "Log Transaction"; document.getElementById('form-container').style.borderColor = "#333"; } 
+            else { await addDoc(txRef, entryData); }
+            document.getElementById('amount-input').value = ''; document.getElementById('notes-input').value = ''; document.getElementById('custom-source-input').value = ''; window.updateCategories();
+        }
+
+        window.deleteEntry = async function(id) { if (confirm("Are you sure you want to delete this entry?")) { await deleteDoc(doc(db, "transactions", id)); } }
+        
+        window.editEntry = function(id) {
+            const tx = transactions.find(t => t.id === id); if (!tx) return;
+            document.querySelector(`input[name="type"][value="${tx.type}"]`).checked = true; window.updateCategories();
+            document.getElementById('amount-input').value = tx.amount; document.getElementById('date-input').value = tx.date; document.getElementById('notes-input').value = tx.notes;
+            const select = document.getElementById('source-input'); let isCustom = true;
+            for (let i = 0; i < select.options.length; i++) { if (select.options[i].value === tx.source) { select.selectedIndex = i; isCustom = false; break; } }
+            if (isCustom) { select.value = tx.type === 'income' ? 'Other Income' : 'Other Expense'; document.getElementById('custom-source-input').value = tx.source; }
+            window.checkCustomSource();
+            editingId = id; document.getElementById('submit-btn').innerText = "Update Entry"; document.getElementById('form-title').innerText = "Editing Entry..."; document.getElementById('form-container').style.borderColor = "#0088ff"; window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.exportCSV = function() {
+            if (transactions.length === 0) return alert("No data to export!");
+            let csvContent = "data:text/csv;charset=utf-8,Date,Type,Category,Amount,Notes\n";
+            transactions.forEach(tx => {
+                let row = `${tx.date},${tx.type},"${tx.source}",${tx.amount},"${tx.notes}"`;
+                csvContent += row + "\n";
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Target_Backup.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        window.updateCategories();
+    </script>
+</body>
+</html>
